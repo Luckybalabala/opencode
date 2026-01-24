@@ -35,10 +35,11 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
     const agent = iife(() => {
       const agents = createMemo(() => sync.data.agent.filter((x) => x.mode !== "subagent" && !x.hidden))
+      const firstAgent = agents()[0]
       const [agentStore, setAgentStore] = createStore<{
         current: string
       }>({
-        current: agents()[0].name,
+        current: firstAgent?.name ?? "build", // ✅ Null safety: fallback to "build" agent
       })
       const { theme } = useTheme()
       const colors = createMemo(() => [
@@ -54,7 +55,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           return agents()
         },
         current() {
-          return agents().find((x) => x.name === agentStore.current)!
+          const current = agents().find((x) => x.name === agentStore.current)
+          // ✅ Null safety: return first available agent if current not found
+          return current ?? agents()[0] ?? createFallbackAgent()
         },
         set(name: string) {
           if (!agents().some((x) => x.name === name))
@@ -386,11 +389,25 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         else
           toast.show({
             variant: "warning",
-            message: `Agent ${value.name}'s configured model ${value.model.providerID}/${value.model.modelID} is not valid`,
+            message: `Agent ${value.name}'s configured model ${value.model.providerID}/${value.modelID} is not valid`,
             duration: 3000,
           })
       }
     })
+
+    // Helper function to create fallback agent
+    // Used when no agents are available or all are filtered out
+    function createFallbackAgent() {
+      return {
+        name: "build",
+        mode: "primary" as const,
+        native: true,
+        permission: { "*": "ask" },
+        description: "Default agent",
+        providerID: "",
+        model: "",
+      }
+    }
 
     const result = {
       model,
