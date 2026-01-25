@@ -35,10 +35,20 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
     const agent = iife(() => {
       const agents = createMemo(() => sync.data.agent.filter((x) => x.mode !== "subagent" && !x.hidden))
+      const firstAgent = agents()[0]
+
+      // Validate that at least one agent exists
+      if (!firstAgent) {
+        throw new Error(
+          "No agents available. Please ensure at least one agent is enabled in your configuration.\n" +
+          "Visit https://opencode.ai/docs/agents for more information."
+        )
+      }
+
       const [agentStore, setAgentStore] = createStore<{
         current: string
       }>({
-        current: agents()[0].name,
+        current: firstAgent.name,
       })
       const { theme } = useTheme()
       const colors = createMemo(() => [
@@ -54,7 +64,11 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           return agents()
         },
         current() {
-          return agents().find((x) => x.name === agentStore.current)!
+          const current = agents().find((x) => x.name === agentStore.current)
+          // Fallback to first available agent if current not found
+          return current ?? agents()[0] ?? (() => {
+            throw new Error("No agents available in configuration")
+          })()
         },
         set(name: string) {
           if (!agents().some((x) => x.name === name))

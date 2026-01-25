@@ -55,7 +55,17 @@ export const TaskTool = Tool.define("task", async (ctx) => {
       }
 
       const agent = await Agent.get(params.subagent_type)
-      if (!agent) throw new Error(`Unknown agent type: ${params.subagent_type} is not a valid agent type`)
+      if (!agent) {
+        throw new Error(
+          `Unknown agent type: ${params.subagent_type}\n\n` +
+          `This agent cannot be invoked via the Task tool. Possible reasons:\n` +
+          `• The agent has mode="primary" (user-facing only, not programmatically invocable)\n` +
+          `• The agent name is misspelled\n` +
+          `• The agent does not exist in your configuration\n\n` +
+          `Only agents with mode="subagent" or mode="all" can be invoked programmatically.\n` +
+          `Visit https://opencode.ai/docs/agents for more information.`
+        )
+      }
 
       const hasTaskPermission = agent.permission.some((rule) => rule.permission === "task")
 

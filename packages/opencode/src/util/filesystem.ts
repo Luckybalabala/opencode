@@ -1,5 +1,5 @@
 import { realpathSync } from "fs"
-import { dirname, join, relative } from "path"
+import { dirname, join, parse, relative } from "path"
 
 export namespace Filesystem {
   export const exists = (p: string) =>
@@ -32,8 +32,59 @@ export namespace Filesystem {
     return !relA || !relA.startsWith("..") || !relB || !relB.startsWith("..")
   }
 
-  export function contains(parent: string, child: string) {
-    return !relative(parent, child).startsWith("..")
+  export function contains(parent: string, child: string): boolean {
+    // Layer 1: Cross-drive check (Windows only)
+    if (process.platform === "win32") {
+      const parentDrive = parse(parent).root
+      const childDrive = parse(child).root
+      if (parentDrive !== childDrive) {
+        // Log cross-drive access attempt
+        const { Log } = require("../log")
+        Log.Default.warn("Filesystem.contains: Cross-drive access denied", {
+          parent,
+          child,
+          parentDrive,
+          childDrive,
+        })
+        return false
+      }
+    }
+
+    // Layer 2: Lexical check (fast path for obvious violations)
+    const lexicalCheck = !relative(parent, child).startsWith("..")
+    if (!lexicalCheck) {
+      return false
+    }
+
+    // Layer 3: Realpath check (prevents symlink attacks)
+    try {
+      const realParent = realpathSync.native(parent)
+      const realChild = realpathSync.native(child)
+      const secureCheck = !relative(realParent, realChild).startsWith("..")
+
+      if (!secureCheck) {
+        // Log potential symlink attack
+        const { Log } = require("../log")
+        Log.Default.warn("Filesystem.contains: Symlink escape detected", {
+          parent,
+          child,
+          realParent,
+          realChild,
+        })
+        return false
+      }
+
+      return true
+    } catch (error) {
+      // Conservative: deny access on error
+      const { Log } = require("../log")
+      Log.Default.error("Filesystem.contains: realpath failed, denying access", {
+        parent,
+        child,
+        error: (error as Error).message,
+      })
+      return false
+    }
   }
 
   export async function findUp(target: string, start: string, stop?: string) {
