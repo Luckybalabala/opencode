@@ -1687,12 +1687,12 @@ function getResponsesModelConfig(modelId: string): ResponsesModelConfig {
   }
 }
 
-// TODO AI SDK 6: use optional here instead of nullish
+// Migrated to AI SDK 6: using optional instead of nullish
 const openaiResponsesProviderOptionsSchema = z.object({
   include: z
     .array(z.enum(["reasoning.encrypted_content", "file_search_call.results", "message.output_text.logprobs"]))
-    .nullish(),
-  instructions: z.string().nullish(),
+    .optional(),
+  instructions: z.string().optional(),
 
   /**
    * Return the log probabilities of the tokens.

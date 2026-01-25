@@ -373,6 +373,7 @@ export async function CodexAuthPlugin(input: PluginInput): Promise<Hooks> {
           model.cost = {
             input: 0,
             output: 0,
+            reasoning: 0,
             cache: { read: 0, write: 0 },
           }
         }
